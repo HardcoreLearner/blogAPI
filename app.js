@@ -1,60 +1,45 @@
 require("dotenv").config();
-const createError = require('http-errors');
 const express = require('express');
-const path = require('path');
-const cookieParser = require('cookie-parser');
-const logger = require('morgan');
+const mongoose = require("mongoose");
+const { mainModule } = require('process');
+const connectDB = require("./config/db");
 
-const indexRouter = require('./routes/index');
-const usersRouter = require('./routes/users');
+// Middlewares importation
+const rateLimitMiddleware = require("./middleware/rateLimitMiddleware");
+const compressionMiddleware = require("./middleware/compressionMiddleware");
+const loggerMiddleware = require("./middleware/loggerMiddleware");
+const bodyParsingMiddleware = require("./middleware/bodyParsingMiddleware");
+const cookieParsingMiddleware = require("./middleware/cookieParsingMiddleware");
+const staticFilesMiddleware = require("./middleware/staticFilesMiddleware");
+const { notFoundHandler, errorHandler } = require('./middleware/errorHandlerMiddleware');
+
+// All routes inside apiRouter
+const apiRouter = require("./routes/apiRoutes");
 
 const app = express();
 
+// Connect to MongoDB
+connectDB();
+
 // Set up rate limiter: maximum of 40 requests per minute
-const RateLimit = require('express-rate-limit');
-const limiter = RateLimit({
-  windowMs: 1 * 60 * 1000,
-  max: 40,
-});
-app.use(limiter);
+app.use(rateLimitMiddleware);
 app.use(express.static('public'));
 
 // Set up compression
-app.use(compression());
+app.use(compressionMiddleware);
 
-// Set up mongoose connection
-const mongoose = require("mongoose");
-const { mainModule } = require('process');
-mongoose.set("strictQuery", false);
-const mongoDB = process.env.MONGODB_URI;
-main().catch((err) => console.log(err));
-async function main() {
-  await mongoose.connect(mongoDB);
-}
-
-app.use(logger('dev'));
+// Using Middlewares
+app.use(loggerMiddleware);
 app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(bodyParsingMiddleware);
+app.use(cookieParsingMiddleware);
+app.use(staticFilesMiddleware);
 
-app.use('/', indexRouter);
-app.use('/users', usersRouter);
+// using Router
+app.use(apiRouter);
 
-// catch 404 and forward to error handler
-app.use(function(req, res, next) {
-  next(createError(404));
-});
-
-// error handler
-app.use(function(err, req, res, next) {
-  // set locals, only providing error in development
-  res.locals.message = err.message;
-  res.locals.error = req.app.get('env') === 'development' ? err : {};
-
-  // render the error page
-  res.status(err.status || 500);
-  res.render('error');
-});
+// error handling middleware
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 module.exports = app;
