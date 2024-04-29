@@ -3,12 +3,7 @@ const mongoose = require("mongoose");
 const connectDB = async () => {
   try {
     const mongoDB = process.env.MONGODB_URI;
-    await mongoose.connect(mongoDB, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      useCreateIndex: true,
-      useFindAndModify: false
-    });
+    await mongoose.connect(mongoDB);
     console.log("MongoDB connected successfully");
   } catch (error) {
     console.error("MongoDB connection failed:", error);
